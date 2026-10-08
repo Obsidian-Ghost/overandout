@@ -1,0 +1,208 @@
+# Release: version PR, tag, GitHub Release, npm + PyPI publish. See RELEASING.md.
+#
+# push to main (feat/fix merged)   -> release job opens/updates PR "chore(release): vX.Y.Z"
+# push to main (release PR merged) -> release job tags + creates the GitHub Release, then build + publish
+# manual run                       -> build + publish a tag (or main), dry-run or for real
+#
+# One version for both packages: release-please bumps package.json, py/pyproject.toml,
+# py/overandout/__init__.py and src/version.ts together (config in .github/release-config.json).
+# Publishing runs in this workflow because GitHub does not trigger workflows from events created with
+# GITHUB_TOKEN, and both registries identify the Trusted Publisher by this workflow's filename.
+# Uploads use Trusted Publishing (OIDC, no tokens): npm with provenance, PyPI via pypa/gh-action-pypi-publish.
+# Automatic publishes are a DRY RUN unless repository variables say otherwise:
+#   RELEASE_NPM  == "publish"              -> upload to npm
+#   RELEASE_PYPI == "pypi" | "testpypi"    -> upload to that index
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      npm:
+        description: npm
+        type: choice
+        options: [dry-run, publish]
+        default: dry-run
+      pypi:
+        description: PyPI index
+        type: choice
+        options: [dry-run, testpypi, pypi]
+        default: dry-run
+      ref:
+        description: Tag to build (empty = main, no tag check)
+        type: string
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      created: ${{ steps.release.outputs.release_created }}
+      tag: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@v5
+        id: release
+        with:
+          config-file: .github/release-config.json
+          manifest-file: .github/release-manifest.json
+
+  build:
+    needs: release
+    # !cancelled(): run on manual dispatch even though `release` is skipped.
+    if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || needs.release.outputs.created == 'true') }}
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.plan.outputs.version }}
+      npm: ${{ steps.plan.outputs.npm }}
+      pypi: ${{ steps.plan.outputs.pypi }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref || needs.release.outputs.tag || github.ref }}
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Build npm tarball
+        run: npm ci && npx tsc -p . && npm pack
+
+      - name: Build Python sdist + wheel
+        run: python -m pip install --upgrade pip build twine && python -m build py --outdir dist && twine check --strict dist/*
+
+      - name: Plan publish (modes, versions == tag)
+        id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          INPUT_NPM: ${{ inputs.npm }}
+          INPUT_PYPI: ${{ inputs.pypi }}
+          INPUT_REF: ${{ inputs.ref }}
+          RELEASE_TAG: ${{ needs.release.outputs.tag }}
+          RELEASE_NPM: ${{ vars.RELEASE_NPM }}
+          RELEASE_PYPI: ${{ vars.RELEASE_PYPI }}
+        run: |
+          set -eu
+          node_version="$(node -p "require('./package.json').version")"
+          py_version="$(python - <<'EOF'
+          import re, pathlib
+          print(re.search(r'^version\s*=\s*"([^"]+)"', pathlib.Path("py/pyproject.toml").read_text(), re.M).group(1))
+          EOF
+          )"
+          ts_version="$(sed -nE 's/.*VERSION = "([^"]+)".*/\1/p' src/version.ts)"
+          init_version="$(sed -nE 's/^__version__ = "([^"]+)".*/\1/p' py/overandout/__init__.py)"
+          if [ "$node_version" != "$py_version" ] || [ "$node_version" != "$ts_version" ] || [ "$node_version" != "$init_version" ]; then
+            echo "::error::versions differ: package.json=$node_version pyproject=$py_version version.ts=$ts_version __init__=$init_version"; exit 1
+          fi
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            npm_mode="$INPUT_NPM"; pypi_mode="$INPUT_PYPI"; tag="$INPUT_REF"
+          else
+            if [ "$RELEASE_NPM" = "publish" ]; then npm_mode="publish"; else npm_mode="dry-run"; fi
+            case "$RELEASE_PYPI" in pypi|testpypi) pypi_mode="$RELEASE_PYPI" ;; *) pypi_mode="dry-run" ;; esac
+            tag="$RELEASE_TAG"
+          fi
+          if [ -n "$tag" ] && [ "${tag#v}" != "$node_version" ]; then
+            echo "::error::tag $tag does not match package version $node_version"; exit 1
+          fi
+          { echo "version=$node_version"; echo "npm=$npm_mode"; echo "pypi=$pypi_mode"; } >> "$GITHUB_OUTPUT"
+          echo "- version \`$node_version\` · tag \`${tag:-none}\` · npm **$npm_mode** · pypi **$pypi_mode**" >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: npm-package
+          path: "*.tgz"
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+  publish-npm:
+    needs: build
+    # !cancelled(): the skipped `release` job (manual runs) would otherwise skip this job too.
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
+    runs-on: ubuntu-latest
+    environment:
+      name: npm
+      url: https://www.npmjs.com/package/overandout/v/${{ needs.build.outputs.version }}
+    permissions:
+      id-token: write   # OIDC token for npm Trusted Publishing
+      contents: read
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      - name: npm >= 11.5.1 (Trusted Publishing)
+        run: npm install -g npm@latest && npm --version
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: npm-package
+
+      - name: Publish
+        env:
+          MODE: ${{ needs.build.outputs.npm }}
+        run: |
+          set -eu
+          tgz="$(ls ./*.tgz)"
+          if [ "$MODE" = "publish" ]; then
+            npm publish "$tgz" --access public --provenance
+          else
+            echo "dry run: nothing is uploaded"
+            npm publish "$tgz" --access public --dry-run
+          fi
+
+  publish-testpypi:
+    needs: build
+    if: ${{ !cancelled() && needs.build.result == 'success' && needs.build.outputs.pypi == 'testpypi' }}
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/project/overandout/${{ needs.build.outputs.version }}/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+  publish-pypi:
+    needs: build
+    if: ${{ !cancelled() && needs.build.result == 'success' && needs.build.outputs.pypi == 'pypi' }}
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/overandout/${{ needs.build.outputs.version }}/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
