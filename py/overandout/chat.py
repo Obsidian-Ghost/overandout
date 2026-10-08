@@ -98,8 +98,11 @@ class Chat:
         self.me = me["token"]["role"]
         self.say(f"overandout chat · channel {me['token']['channel']} · you are {self.me}")
         last_missing = None
+        first = True
         while not self.stop.is_set():
-            r = self.c.join(scope=scope, timeout=45)
+            # First call returns immediately so the current state prints at once; later calls long-poll.
+            r = self.c.join(scope=scope, timeout=0 if first else 45)
+            first = False
             if r["status"] == "waiting":
                 missing = r.get("missing", [])
                 note = f"waiting for roles {missing}" if missing else "waiting for the operator to publish a task"
