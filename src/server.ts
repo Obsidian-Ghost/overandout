@@ -7,6 +7,7 @@ import { Relay, RelayError, tokenIdentity } from "./relay.ts";
 import { McpEndpoint, bearerOf } from "./mcp.ts";
 import { Store, type Token } from "./store.ts";
 import { ContractWatcher } from "./contract.ts";
+import { agentOpenApi, inviteText } from "./invite.ts";
 import { VERSION } from "./version.ts";
 
 export { VERSION } from "./version.ts";
@@ -125,7 +126,34 @@ export async function serve(opts: ServeOptions = {}): Promise<RunningServer> {
     unread: relay.unread(ctx.identity!, ctx.token!.channel),
   });
 
+  /** Base URL as the caller sees it (tunnel/proxy aware), for links inside self-description. */
+  const publicBase = (req: IncomingMessage) => {
+    const proto = (req.headers["x-forwarded-proto"] as string | undefined)?.split(",")[0] || "http";
+    const host = (req.headers["x-forwarded-host"] as string | undefined)?.split(",")[0] || req.headers.host || "127.0.0.1";
+    return `${proto}://${host}`;
+  };
+
   const routes: Route[] = [
+    // ---- self-description for agents (the token in the path is the credential) ----
+    { method: "GET", pattern: /^\/i\/([^/]+)$/, auth: "none", handler: ({ req, res, params }) => {
+      const t = relay.resolveToken(params[0]);
+      if (!t) {
+        res.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
+        res.end("unknown or revoked invite token\n");
+        return RAW;
+      }
+      relay.seen(tokenIdentity(t.token));
+      res.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
+      res.end(inviteText(publicBase(req), t));
+      return RAW;
+    } },
+    { method: "GET", pattern: /^\/agent\/help$/, auth: "agent", handler: (ctx) => {
+      ctx.res.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
+      ctx.res.end(inviteText(publicBase(ctx.req), ctx.token!));
+      return RAW;
+    } },
+    { method: "GET", pattern: /^\/agent\/openapi\.json$/, auth: "none", handler: ({ req }) => agentOpenApi(publicBase(req)) },
+
     // ---- static / meta ----
     { method: "GET", pattern: /^\/(?:index\.html)?$/, auth: "none", handler: ({ res }) => {
       res.writeHead(200, { "content-type": "text/html; charset=utf-8" });

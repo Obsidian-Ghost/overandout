@@ -197,17 +197,15 @@ overandout-relay invite login BE
 overandout-relay invite login FE
 ```
 
-Open two agent sessions (two Kilo windows, or Kilo + Claude Code, whatever you have) and paste each prompt into its agent. The prompt looks like this:
+Open two agent sessions (two Kilo windows, or Kilo + Claude Code, whatever you have) and paste each prompt into its agent. The prompt is three lines:
 
 ```
 You are the BE agent on a shared task coordinated through overandout.
-Run: pip install overandout && overandout login --url http://127.0.0.1:7777 --token ac_...
-Then run: overandout protocol   and follow those instructions exactly (join first; it returns your task).
-Always call it as: overandout --as BE <command>   (join, inbox, ask, reply, post, contract, wait, done).
-Blocking commands return "timeout" after ~45 s when nothing happened; just run them again.
+Everything you need is at http://127.0.0.1:7777/i/ac_... (read it, e.g. curl -s http://127.0.0.1:7777/i/ac_...).
+Shortest path: pip install overandout && overandout connect http://127.0.0.1:7777/i/ac_...  then follow what it prints.
 ```
 
-The agent installs the package, reads the instructions that ship inside it, and joins. Nothing else to configure.
+That URL is the whole onboarding: the relay serves a plain-text page for that token explaining what this is, the agent's role, the `pip` path and the raw HTTP API. The agent reads it, runs `connect`, and gets the exact next commands back. Nothing else to configure, nothing for you to narrate.
 
 (If you set up MCP instead, the prompt is simply: *"Join the overandout channel `login` as role `BE` with scope `apps/api/**` using the overandout join tool; if it returns waiting, call it again; follow the task and the tool hints; when finished call done, then wait until closed."*)
 
@@ -362,19 +360,32 @@ That is all. From here it is exactly like section 5, except the two agents are i
 
 ## 9. The pip route: `overandout`
 
-`overandout` is a small Python package (no dependencies, Python 3.9+) with a command of the same name (alias `oao`) that does exactly what the MCP tools do, over the relay's REST API. The instructions an agent needs ship **inside the package**, so an agent that only knows "pip install overandout" can discover everything:
+`overandout` is a small Python package (no dependencies, Python 3.9+) with a command of the same name (alias `oao`) that does exactly what the MCP tools do, over the relay's REST API.
+
+**How an agent discovers the tool without a human explaining it** (MCP clients get this from the tool list; the pip/HTTP route has equivalents):
+
+| Where | What the agent gets |
+|---|---|
+| `curl <relay>/i/<token>` | plain text: what overandout is, its channel and role, the pip steps, the raw HTTP API, the rules |
+| `overandout connect <that url>` | saves the login; the JSON answer contains `next`: the exact commands to run |
+| `overandout` (no arguments) | "start here" summary |
+| `overandout protocol` / `python -m overandout` | the full rules and loop |
+| `overandout features` | JSON catalogue of every command: name, args, blocking?, what it does |
+| `GET <relay>/agent/openapi.json` | OpenAPI 3.1 of the HTTP API, for agents that drive it with plain requests |
+| `GET <relay>/agent/help` | the invite text again, authenticated |
+| `pip show overandout`, `help(overandout.RelayClient)` | package summary, Python API docs |
 
 ```bash
 pip install overandout
-overandout --help                       # the commands
-overandout protocol                     # the full instructions an agent should follow (also: python -m overandout)
-python -c "import overandout; help(overandout.RelayClient)"
+overandout connect https://relay.example.com/i/ac_...   # from the invite
+overandout --help                                       # the commands
+overandout protocol                                     # the full instructions an agent should follow
 ```
 
 `oao` is a short alias for `overandout`. The agent's loop:
 
 ```bash
-overandout login --url http://127.0.0.1:7777 --token ac_...   # once; saved as a profile named <channel>/<ROLE>
+overandout connect http://127.0.0.1:7777/i/ac_...   # once; same as login --url --token; saved as a profile named <channel>/<ROLE>
 overandout --as BE join --scope "apps/api/**"   # blocks until the channel is active; prints the task
 overandout --as BE inbox                        # unread messages
 overandout --as BE ask FE "Which field name do you expect for the token?"   # blocks until answered

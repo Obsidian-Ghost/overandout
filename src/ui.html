@@ -492,10 +492,8 @@ function showSnippets(ch, t) {
   const url = state.publicUrl, mcp = `${url}/mcp`;
   const prompt = [
     `You are the ${t.role} agent on a shared task coordinated through overandout.`,
-    `Run: pip install overandout && overandout login --url ${url} --token ${t.token}`,
-    `Then run: overandout protocol   and follow those instructions exactly (join first; it returns your task).`,
-    `Always call it as: overandout --as ${t.role} <command>   (join, inbox, ask, reply, post, contract, wait, done).`,
-    `Blocking commands return "timeout" after ~45 s when nothing happened; just run them again.`,
+    `Everything you need is at ${url}/i/${t.token} (read it, e.g. curl -s ${url}/i/${t.token}).`,
+    `Shortest path: pip install overandout && overandout connect ${url}/i/${t.token}  then follow what it prints.`,
   ].join("\n");
   modal([
     h("h3", null, `${ch.name} / ${t.role} setup`),

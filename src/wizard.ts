@@ -46,12 +46,11 @@ export function taskTemplate(roles: string[]): string {
 }
 
 export function agentPrompt(url: string, role: string, token: string): string {
+  const base = url.replace(/\/$/, "");
   return [
     `You are the ${role} agent on a shared task coordinated through overandout.`,
-    `Run: pip install overandout && overandout login --url ${url} --token ${token}`,
-    `Then run: overandout protocol   and follow those instructions exactly (join first; it returns your task).`,
-    `Always call it as: overandout --as ${role} <command>   (join, inbox, ask, reply, post, contract, wait, done).`,
-    `Blocking commands return "timeout" after ~45 s when nothing happened; just run them again.`,
+    `Everything you need is at ${base}/i/${token} (read it, e.g. curl -s ${base}/i/${token}).`,
+    `Shortest path: pip install overandout && overandout connect ${base}/i/${token}  then follow what it prints.`,
   ].join("\n");
 }
 

@@ -55,7 +55,8 @@ test("task template names every role and keeps the three rules", () => {
   assert.match(t, /^QA \(owns/m);
   assert.match(t, /contract set/);
   assert.match(t, /done with a summary, then keep calling wait/);
-  assert.match(agentPrompt("https://r.example", "WEB", "ac_x"), /overandout login --url https:\/\/r.example --token ac_x/);
+  assert.match(agentPrompt("https://r.example", "WEB", "ac_x"), /overandout connect https:\/\/r.example\/i\/ac_x/);
+  assert.match(agentPrompt("https://r.example/", "WEB", "ac_x"), /curl -s https:\/\/r.example\/i\/ac_x/, "trailing slash is normalised");
 });
 
 test("wizard: creates the channel, saves + publishes the pasted task, mints one token per role, prints prompts", async () => {
@@ -82,10 +83,10 @@ test("wizard: creates the channel, saves + publishes the pasted task, mints one 
   const tokens = await api("GET", "/api/channels/demo/tokens");
   assert.deepEqual(tokens.map((t: any) => t.role).sort(), ["API", "WEB"]);
   const out = io.said.join("\n");
-  for (const t of tokens) assert.match(out, new RegExp(`overandout login --url https://relay.example.com --token ${t.token}`));
+  for (const t of tokens) assert.match(out, new RegExp(`overandout connect https://relay.example.com/i/${t.token}`));
   assert.match(out, /prompt for the API agent/);
   assert.match(out, /prompt for the WEB agent/);
-  assert.match(out, /overandout --as WEB <command>/);
+  assert.match(out, /You are the WEB agent/);
 });
 
 test("wizard: rejects bad names until a valid one, allows skipping the task", async () => {

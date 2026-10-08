@@ -244,3 +244,32 @@ test("polling join is idempotent: one 'joined' notice however many times the sam
   assert.equal(scopeNotes.length, 1);
   assert.equal(running.relay.who("poll").roster[0].scope, "y/**");
 });
+
+test("self-description: /i/<token> explains the route, honours proxy headers, 404s unknown tokens; openapi + help", async () => {
+  await api("POST", "/api/channels", { name: "disc", roles: ["DEV"] });
+  const tok = (await api("POST", "/api/channels/disc/tokens", { role: "DEV" })).data;
+
+  const plain = await fetch(`${running.url}/i/${tok.token}`);
+  assert.equal(plain.status, 200);
+  assert.match(plain.headers.get("content-type") ?? "", /text\/plain/);
+  const text = await plain.text();
+  assert.match(text, /your role: DEV/);
+  assert.match(text, /overandout connect http:\/\/127\.0\.0\.1:\d+\/i\/ac_/);
+  assert.match(text, /POST http:\/\/127\.0\.0\.1:\d+\/agent\/join/);
+  assert.match(text, /Authorization: Bearer ac_/);
+
+  // Behind a tunnel/proxy the links must use the public host, not the bind address.
+  const proxied = await fetch(`${running.url}/i/${tok.token}`, { headers: { "x-forwarded-proto": "https", "x-forwarded-host": "relay.example.com" } });
+  assert.match(await proxied.text(), /overandout connect https:\/\/relay\.example\.com\/i\//);
+
+  assert.equal((await fetch(`${running.url}/i/ac_nope`)).status, 404);
+
+  const spec = (await fetch(`${running.url}/agent/openapi.json`).then((r) => r.json())) as any;
+  assert.equal(spec.openapi, "3.1.0");
+  for (const p of ["/agent/join", "/agent/ask", "/agent/reply", "/agent/wait", "/agent/done", "/agent/contract"]) assert.ok(spec.paths[p], `openapi missing ${p}`);
+
+  assert.equal((await fetch(`${running.url}/agent/help`)).status, 401, "help over /agent/* needs the bearer token");
+  const help = await fetch(`${running.url}/agent/help`, { headers: { authorization: `Bearer ${tok.token}` } });
+  assert.equal(help.status, 200);
+  assert.match(await help.text(), /channel "disc"/);
+});

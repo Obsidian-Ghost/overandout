@@ -13,7 +13,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any, Callable, Dict, List, Tuple
 
 from overandout import INSTRUCTIONS, RelayClient, RelayError, load_config, save_profile
-from overandout.cli import main
+from overandout.cli import main, parse_invite, FEATURES
 
 TOKEN = "ac_test"
 
@@ -180,6 +180,41 @@ class ClientTests(unittest.TestCase):
         self.assertEqual(RelayClient().token, "ac_env")
         self.assertEqual(RelayClient(token="ac_arg").token, "ac_arg")
         self.assertEqual(sorted(load_config()["profiles"]), ["pay/DEV", "pay/OPS"])
+
+    def test_discovery_surface(self) -> None:
+        self.assertEqual(parse_invite("https://relay.example.com/i/ac_abc-123"), ("https://relay.example.com", "ac_abc-123"))
+        self.assertEqual(parse_invite("http://127.0.0.1:7777/i/ac_x/"), ("http://127.0.0.1:7777", "ac_x"))
+        self.assertIsNone(parse_invite("https://relay.example.com/agent/me"))
+        self.assertIsNone(parse_invite("ac_token_only"))
+        names = [c["name"] for c in FEATURES["commands"]]
+        for n in ("connect", "join", "inbox", "ask", "reply", "post", "contract", "wait", "done", "protocol", "chat"):
+            self.assertIn(n, names)
+        out = io.StringIO()
+        with redirect_stdout(out):
+            self.assertEqual(main([]), 0)
+        self.assertIn("overandout connect", out.getvalue())
+        out = io.StringIO()
+        with redirect_stdout(out):
+            self.assertEqual(main(["features"]), 0)
+        self.assertEqual(json.loads(out.getvalue())["package"], "overandout")
+        out = io.StringIO()
+        with redirect_stdout(out):
+            self.assertEqual(main(["connect", "nonsense"]), 2)
+        self.assertEqual(json.loads(out.getvalue())["code"], "usage")
+
+    def test_connect_from_invite_url(self) -> None:
+        relay = FakeRelay({("GET", "/agent/me"): [(200, {"ok": True, "token": {"channel": "c", "role": "QA", "label": None}, "joined": False})]})
+        try:
+            out = io.StringIO()
+            with redirect_stdout(out):
+                code = main(["connect", f"{relay.url}/i/{TOKEN}"])
+            self.assertEqual(code, 0)
+            r = json.loads(out.getvalue())
+            self.assertEqual(r["profile"], "c/QA")
+            self.assertTrue(any("join" in step for step in r["next"]))
+            self.assertEqual(RelayClient(profile="QA").token, TOKEN)
+        finally:
+            relay.close()
 
     def test_cli_json_output_and_exit_codes(self) -> None:
         relay = FakeRelay({
