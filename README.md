@@ -92,15 +92,16 @@ Role statuses: `absent` (never joined), `present` (here), `done` (finished), `le
 - **Node.js 24 or newer** (`node --version`). It runs the TypeScript directly, no build step.
 - A coding agent: Kilo, Claude Code, Cursor, or anything that supports MCP. Or Python 3.9+ for the `overandout` command.
 
-### Get the code and install dependencies
+### Install the relay (the server)
 
 ```bash
-cd overandout
-npm install
-npm link            # makes the `overandout-relay` command available everywhere
+npm install -g overandout        # installs the `overandout-relay` command
+overandout-relay serve
 ```
 
-If you skip `npm link`, write `node src/cli.ts` wherever this README says `overandout-relay`.
+or without installing: `npx overandout serve`. From a clone of this repo: `npm install && npm link` gives you the same command, or write `node src/cli.ts` wherever this README says `overandout-relay`.
+
+The npm package and the PyPI package are both called `overandout`: the npm one is the server (command `overandout-relay`), the PyPI one is the agent client (command `overandout`, alias `oao`). They are versioned together.
 
 ### Start the relay (`overandout-relay`)
 

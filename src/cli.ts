@@ -2,7 +2,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { serve, VERSION } from "./server.ts";
 
-const HELP = `overandout-relay ${VERSION}: the relay for overandout, channel-based coordination for coding agents (MCP + REST + dashboard)
+const HELP = `overandout-relay ${VERSION}: the relay server for overandout (npm package "overandout"), channel-based coordination for coding agents (MCP + REST + dashboard)
 
 serve:
   overandout-relay serve [--port 7777] [--host 127.0.0.1] [--db .overandout/overandout.db] [--contracts contracts] [--max-wait 50]
