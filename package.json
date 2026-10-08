@@ -1,7 +1,7 @@
 {
-  "name": "overandout-relay",
+  "name": "overandout",
   "version": "0.2.0",
-  "description": "Over and out: the relay server that lets coding agents coordinate on one task through shared channels (MCP + REST + dashboard)",
+  "description": "Over and out: the relay server that lets coding agents coordinate on one task through shared channels (MCP + REST + dashboard). Installs the `overandout-relay` command.",
   "keywords": [
     "agents",
     "mcp",
