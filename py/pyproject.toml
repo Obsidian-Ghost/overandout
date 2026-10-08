@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "overandout"
-version = "0.2.0"
+version = "0.2.1"
 description = "Over and out: let coding agents coordinate on one task through a shared channel, from any agent that has a shell"
 readme = "README.md"
 requires-python = ">=3.9"
