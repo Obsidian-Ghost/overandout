@@ -381,7 +381,7 @@ function renderTabs(ch) {
   const defs = [
     ["transcript", "Transcript", entry?.messages.length || 0, false],
     ["pending", "Pending asks", ch.pending_asks.length, ch.pending_asks.length > 0],
-    ["agents", "Agents & invites", ch.roster.filter((r) => r.status === "present" || r.status === "done").length, false],
+    ["agents", "Agents & invites", `${ch.roster.filter((r) => r.status === "present" || r.status === "done").length}/${ch.roster.length}`, ch.missing.length > 0 && ch.status !== "closed"],
     ["contract", "Contract", state.contract?.exists ? "✓" : "–", false],
     ["task", "Task", ch.task ? "✓" : "–", !ch.task],
   ];
