@@ -2,6 +2,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { networkInterfaces } from "node:os";
 import { serve, VERSION } from "./server.ts";
+import { runNew, terminalIO, agentPrompt as wizardPrompt } from "./wizard.ts";
 
 const HELP = `overandout-relay ${VERSION}: the relay server for overandout (npm package "overandout"), channel-based coordination for coding agents (MCP + REST + dashboard)
 
@@ -12,6 +13,7 @@ serve:
       Use it whenever the relay is reachable beyond localhost (0.0.0.0, a tunnel, a VPS).
 
 channels:
+  overandout-relay new [name]              guided setup (interactive): roles, task, publish, invites, agent prompts
   overandout-relay channel create <name> --roles FE,BE
   overandout-relay channel list | overandout-relay status [channel]
   overandout-relay channel delete <name>
@@ -115,13 +117,7 @@ function printInvite(url: string, channel: string, t: any): void {
 
 /** The text an operator pastes into an agent so it can participate using only pip. */
 export function agentPrompt(url: string, t: { role: string; token: string }): string {
-  return [
-    `You are the ${t.role} agent on a shared task coordinated through overandout.`,
-    `Run: pip install overandout && overandout login --url ${url} --token ${t.token}`,
-    `Then run: overandout protocol   and follow those instructions exactly (join first; it returns your task).`,
-    `Always call it as: overandout --as ${t.role} <command>   (join, inbox, ask, reply, post, contract, wait, done).`,
-    `Blocking commands return "timeout" after ~45 s when nothing happened; just run them again.`,
-  ].join("\n");
+  return wizardPrompt(url, t.role, t.token);
 }
 
 async function main(argv: string[]): Promise<void> {
@@ -167,6 +163,16 @@ async function main(argv: string[]): Promise<void> {
       };
       process.on("SIGINT", stop);
       process.on("SIGTERM", stop);
+      return;
+    }
+    case "new": {
+      if (!process.stdin.isTTY) throw new Error("`new` is interactive; in scripts use: channel create, publish, invite");
+      const io = terminalIO();
+      try {
+        await runNew(api, base(), io, sub);
+      } finally {
+        io.close();
+      }
       return;
     }
     case "channel": {

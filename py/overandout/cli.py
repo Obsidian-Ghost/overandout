@@ -84,6 +84,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("protocol", help="print the instructions an agent should follow (paste into AGENTS.md)")
 
+    ch = sub.add_parser("chat", help="sit in the channel as a human: live messages + /commands (interactive)")
+    ch.add_argument("--scope", help='files you own, e.g. "apps/api/**"')
+
     # `login` reuses the shared --url / --token flags: overandout login --url https://relay.example.com --token ac_...
     sub.add_parser("login", help="save --url and --token as a profile named <channel>/<ROLE>; several agents can share a machine")
 
@@ -142,6 +145,10 @@ def main(argv: list[str] | None = None) -> int:
             res = c.wait(timeout=args.timeout)
         elif args.cmd == "done":
             res = c.done(args.summary, timeout=args.timeout)
+        elif args.cmd == "chat":
+            from .chat import run_chat
+
+            return run_chat(c, scope=args.scope)
         elif args.cmd == "contract":
             if args.action == "set":
                 if not args.file:

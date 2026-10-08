@@ -149,6 +149,8 @@ Both routes talk to the same relay and can be mixed in one channel.
 
 We will build a tiny login feature with two agents: `BE` (backend) and `FE` (frontend).
 
+> Shortcut: `overandout-relay new login` asks you the questions below interactively (name, roles, task in your editor, publish, one token per role) and prints the prompt for each agent. The steps are spelled out here so you know what it does.
+
 ### Step 1 – create the channel
 
 ```bash
@@ -402,6 +404,26 @@ c.done("shipped"); c.wait()
 
 A CI job or any script can participate the same way: give it a token and `overandout post INFO "deploy to staging finished"`.
 
+### Humans in the channel: `overandout --as ROLE chat`
+
+A role does not have to be an agent. The same token that an agent would use lets a person sit in the channel from a terminal:
+
+```
+overandout --as BE chat --scope "apps/api/**"
+overandout chat · channel login · you are BE
+  channel is ACTIVE. roster: FE:present, BE:present
+--- task --- ...
+BE> contract ready                       # plain text = INFO to everyone
+BE> /ask FE which field name do you expect for the token?
+[18:40:12] REPLY    #12 FE → BE (re #11)
+           `token`, a JWT string
+BE> /reply 14 UTC with a trailing Z, ISO 8601
+BE> /contract set api.yaml
+BE> /done endpoint shipped and tested
+```
+
+Messages print as they arrive; `/help` lists the commands (`/ask`, `/reply`, `/info`, `/hold`, `/contract`, `/who`, `/task`, `/history`, `/done`, `/quit`). Use it to answer an agent's questions yourself, to play the reviewer role, or to stand in for an agent that died. Agents cannot tell the difference, and they should not need to.
+
 ---
 
 ## 10. What the agents can do (the 10 tools)
@@ -438,6 +460,7 @@ Token-bound agents (remote or `overandout`) can omit `channel` and `role`; the t
 overandout-relay serve [--port 7777] [--host 127.0.0.1] [--db .overandout/overandout.db] [--contracts contracts] [--max-wait 50]
 overandout-relay serve --public [--host 0.0.0.0] [--admin-token ra_...]
 
+overandout-relay new [name]              # interactive: roles, task, publish, invites, agent prompts
 overandout-relay channel create <name> --roles FE,BE
 overandout-relay channel list
 overandout-relay channel delete <name>              # removes transcript, roster and tokens; contract file stays on disk
@@ -582,10 +605,11 @@ src/server.ts     HTTP routes: /mcp, /agent/* (REST), /api/* (operator), SSE, da
 src/version.ts    the version constant (bumped by release-please)
 src/contract.ts   contracts/ file watcher + diff summary
 src/cli.ts        the `overandout-relay` command
+src/wizard.ts     `overandout-relay new`, the guided setup
 src/ui.html       the dashboard (vanilla HTML/CSS/JS, no build)
 test/*.test.ts    end-to-end tests using real MCP clients
 test/seed-demo.ts seeds a demo scenario against a running relay
-py/               Python package `overandout` (RelayClient + the `overandout` / `oao` command)
+py/               Python package `overandout` (RelayClient, the `overandout` / `oao` command, `chat` mode for humans)
 deploy/           install.sh, systemd unit, Caddyfile for a Linux server
 Dockerfile        public-mode relay in a container (state in /data)
 RELEASING.md      how versions and publishing work (release-please + Trusted Publishing)

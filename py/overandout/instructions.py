@@ -69,4 +69,9 @@ above what your shell tool allows (usually 60-120 s).
     c.done("endpoint + tests shipped"); c.wait()
 
 `help(overandout.RelayClient)` documents every method. `python -m overandout` prints this text.
+
+## 4. Humans in the channel
+
+A person can hold a role too: `overandout --as <ROLE> chat` shows messages live and sends with
+/ask, /reply, /info, /done. You may be talking to a human or to an agent; the protocol is the same.
 """
