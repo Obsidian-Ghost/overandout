@@ -1,0 +1,627 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>overandout</title>
+<style>
+  :root {
+    --font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --radius: 10px; --radius-s: 6px;
+  }
+  [data-theme="dark"] {
+    --bg: #0b0e14; --surface: #121722; --surface2: #1a2130; --surface3: #222b3c; --border: #232c3b;
+    --text: #e6eaf0; --muted: #8b95a7; --accent: #5b9dff; --accent-bg: rgba(91,157,255,.12);
+    --ok: #3ecf8e; --warn: #f5b942; --danger: #ff6b6b; --op: #c084fc; --shadow: 0 8px 30px rgba(0,0,0,.35);
+  }
+  [data-theme="light"] {
+    --bg: #f4f6f9; --surface: #ffffff; --surface2: #f1f3f7; --surface3: #e8ebf1; --border: #e1e5ec;
+    --text: #141a26; --muted: #66718a; --accent: #2f6fed; --accent-bg: rgba(47,111,237,.10);
+    --ok: #1f9d64; --warn: #b7791f; --danger: #d64545; --op: #8e44e0; --shadow: 0 8px 30px rgba(20,26,38,.10);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; font: 13.5px/1.45 var(--font); background: var(--bg); color: var(--text); display: grid; grid-template-rows: 52px 1fr; }
+  button, input, textarea, select { font: inherit; color: inherit; }
+  a { color: var(--accent); }
+  .mono { font-family: var(--mono); }
+  .muted { color: var(--muted); }
+
+  /* top bar */
+  .top { display: flex; align-items: center; gap: 14px; padding: 0 16px; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; letter-spacing: .02em; }
+  .brand .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px var(--accent-bg); }
+  .top .grow { flex: 1; }
+  .badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); background: var(--surface2); white-space: nowrap; }
+  .badge.live { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 50%, transparent); }
+  .badge.off { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 50%, transparent); }
+  .icon-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-s); padding: 5px 9px; cursor: pointer; color: var(--muted); }
+  .icon-btn:hover { color: var(--text); border-color: var(--accent); }
+
+  /* layout */
+  .app { display: grid; grid-template-columns: 290px 1fr; min-height: 0; }
+  aside { border-right: 1px solid var(--border); background: var(--surface); display: flex; flex-direction: column; min-height: 0; }
+  main { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; min-height: 0; }
+
+  /* sidebar */
+  .side-head { padding: 12px 12px 8px; display: grid; gap: 8px; }
+  .seg { display: inline-flex; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-s); padding: 2px; }
+  .seg button { background: transparent; border: 0; padding: 4px 10px; border-radius: 4px; cursor: pointer; color: var(--muted); font-size: 12px; }
+  .seg button.on { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.15); }
+  .field { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-s); padding: 7px 10px; outline: none; }
+  .field:focus { border-color: var(--accent); }
+  .list { overflow: auto; flex: 1; padding: 4px 8px 8px; }
+  .card { padding: 10px 12px; border-radius: var(--radius); cursor: pointer; border: 1px solid transparent; margin-bottom: 4px; }
+  .card:hover { background: var(--surface2); }
+  .card.sel { background: var(--accent-bg); border-color: color-mix(in srgb, var(--accent) 35%, transparent); }
+  .card .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .card .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card .chips { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px; }
+  .pill { font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; background: var(--surface3); color: var(--muted); }
+  .pill.active { background: color-mix(in srgb, var(--ok) 18%, transparent); color: var(--ok); }
+  .pill.waiting { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
+  .pill.complete { background: var(--accent-bg); color: var(--accent); }
+  .pill.closed { opacity: .8; }
+  .chip { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--surface2); border: 1px solid var(--border); color: var(--muted); display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+  .chip i { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); display: inline-block; }
+  .chip.present i { background: var(--ok); } .chip.done i { background: var(--accent); } .chip.left i, .chip.absent i { background: var(--danger); }
+  .chip.stale i { background: var(--warn); }
+  .attn { font-size: 11px; font-weight: 700; color: var(--warn); }
+  .pulse { animation: pulse 1.3s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .35; } }
+  .new { padding: 10px 12px 12px; border-top: 1px solid var(--border); display: grid; gap: 6px; }
+  .btn { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-s); padding: 7px 12px; cursor: pointer; white-space: nowrap; }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { filter: brightness(1.08); }
+  .btn.danger { color: var(--danger); } .btn.danger:hover { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, transparent); }
+  .btn.sm { padding: 4px 9px; font-size: 12px; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+  /* main header */
+  .head { padding: 14px 20px 10px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; flex-wrap: wrap; background: var(--surface); }
+  .head h2 { margin: 0; font-size: 17px; }
+  .head .grow { flex: 1; }
+  .tabs { display: flex; gap: 4px; padding: 0 12px; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .tabs button { background: transparent; border: 0; border-bottom: 2px solid transparent; padding: 10px 12px; cursor: pointer; color: var(--muted); font-weight: 500; }
+  .tabs button.on { color: var(--text); border-bottom-color: var(--accent); }
+  .tabs button .n { font-size: 11px; background: var(--surface3); color: var(--muted); padding: 0 6px; border-radius: 999px; margin-left: 6px; }
+  .tabs button .n.warn { background: color-mix(in srgb, var(--warn) 22%, transparent); color: var(--warn); }
+  .pane { overflow: auto; min-height: 0; }
+  .pane[hidden] { display: none; }
+
+  /* transcript */
+  .filters { display: flex; gap: 6px; padding: 10px 16px; align-items: center; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg); z-index: 1; }
+  .filters .field { max-width: 260px; margin-left: auto; padding: 5px 9px; }
+  .fchip { font-size: 12px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface2); color: var(--muted); cursor: pointer; }
+  .fchip.on { background: var(--accent-bg); color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+  .msg { display: grid; grid-template-columns: 58px 80px 1fr; gap: 12px; padding: 9px 16px; border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
+  .msg:hover { background: var(--surface); }
+  .msg .t { color: var(--muted); font-size: 11px; padding-top: 3px; font-family: var(--mono); }
+  .msg .type { font-size: 10px; font-weight: 700; letter-spacing: .08em; padding-top: 3px; }
+  .msg .body { white-space: pre-wrap; word-break: break-word; font-family: var(--mono); font-size: 12.5px; }
+  .msg .from { font-family: var(--font); font-size: 12.5px; color: var(--muted); margin-bottom: 2px; }
+  .msg .from b { color: var(--text); }
+  .msg .ref { color: var(--muted); font-size: 11px; margin-left: 6px; }
+  .msg.SYSTEM .body, .msg.SYSTEM .type { color: var(--muted); }
+  .msg.INFO .type { color: var(--accent); } .msg.HOLD .type { color: var(--danger); } .msg.ASK .type { color: var(--warn); }
+  .msg.REPLY .type, .msg.DONE .type { color: var(--ok); }
+  .msg.OPERATOR { background: color-mix(in srgb, var(--op) 8%, transparent); } .msg.OPERATOR .type { color: var(--op); }
+  .age { color: var(--warn); font-size: 11px; margin-left: 8px; font-weight: 600; }
+
+  /* pending */
+  .ask { margin: 12px 16px; padding: 14px; border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent); background: color-mix(in srgb, var(--warn) 6%, var(--surface)); border-radius: var(--radius); display: grid; grid-template-columns: 1fr 340px; gap: 14px; }
+  .ask .who { color: var(--warn); font-weight: 700; font-size: 12px; margin-bottom: 6px; }
+  .ask .q { white-space: pre-wrap; font-family: var(--mono); font-size: 12.5px; }
+  .ask textarea { width: 100%; min-height: 64px; resize: vertical; }
+  .ask .answer { display: grid; gap: 6px; }
+
+  /* agents / invites */
+  .table { width: 100%; border-collapse: collapse; }
+  .table th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 10px 16px; border-bottom: 1px solid var(--border); }
+  .table td { padding: 10px 16px; border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent); vertical-align: top; }
+  .tok { font-family: var(--mono); font-size: 12px; background: var(--surface2); padding: 2px 6px; border-radius: 4px; word-break: break-all; }
+  .section { padding: 16px; display: grid; gap: 10px; }
+  .section h3 { margin: 6px 0 0; font-size: 13px; }
+  pre.snip { margin: 0; padding: 10px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-s); font-size: 12px; overflow: auto; white-space: pre-wrap; word-break: break-all; position: relative; }
+  .snipwrap { position: relative; }
+  .snipwrap .copy { position: absolute; top: 6px; right: 6px; }
+
+  /* composer */
+  .composer { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; padding: 10px 16px; border-top: 1px solid var(--border); background: var(--surface); align-items: end; }
+  .composer[hidden] { display: none; }
+  .composer textarea { min-height: 40px; max-height: 160px; resize: vertical; }
+  .composer .hint { grid-column: 1 / -1; font-size: 11px; color: var(--muted); margin-top: -2px; }
+  textarea.field { font-family: var(--mono); font-size: 12.5px; }
+
+  .empty { color: var(--muted); padding: 48px 20px; text-align: center; }
+  .kv { display: grid; grid-template-columns: 120px 1fr; gap: 6px 12px; padding: 16px; }
+  .kv dt { color: var(--muted); } .kv dd { margin: 0; }
+
+  /* modal + toast */
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none; align-items: center; justify-content: center; z-index: 50; }
+  .modal-bg.open { display: flex; }
+  .modal { width: min(520px, 92vw); background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); padding: 20px; display: grid; gap: 12px; }
+  .modal h3 { margin: 0; }
+  .modal .actions { display: flex; justify-content: flex-end; gap: 8px; }
+  #toast { position: fixed; bottom: 16px; right: 16px; padding: 10px 14px; border-radius: var(--radius-s); background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow); display: none; max-width: 440px; z-index: 60; }
+  #toast.err { border-color: var(--danger); color: var(--danger); }
+  #toast.ok { border-color: var(--ok); }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="dot"></span>overandout</div>
+  <span id="authBadge" class="badge">local</span>
+  <span class="grow"></span>
+  <span id="conn" class="badge live">live</span>
+  <button class="icon-btn" id="themeBtn" title="toggle theme">◐</button>
+  <button class="icon-btn" id="tokenBtn" title="admin token">key</button>
+</header>
+
+<div class="app">
+  <aside>
+    <div class="side-head">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <div class="seg"><button data-f="open" class="on">Open</button><button data-f="all">All</button></div>
+        <span class="muted" id="count"></span>
+      </div>
+      <input class="field" id="search" placeholder="search channels" />
+    </div>
+    <div class="list" id="channels"></div>
+    <form class="new" id="newChannel">
+      <input class="field" name="name" placeholder="new channel name" required pattern="[A-Za-z0-9][A-Za-z0-9_-]{0,63}" />
+      <input class="field" name="roles" placeholder="roles, e.g. FE,BE" required />
+      <button class="btn primary" type="submit">Create channel</button>
+    </form>
+  </aside>
+
+  <main>
+    <div class="head" id="head"></div>
+    <div class="tabs" id="tabs"></div>
+    <div class="pane" id="pane-transcript"></div>
+    <div class="pane" id="pane-pending" hidden></div>
+    <div class="pane" id="pane-agents" hidden></div>
+    <div class="pane" id="pane-contract" hidden></div>
+    <div class="pane" id="pane-task" hidden></div>
+    <div class="composer" id="composer" hidden>
+      <textarea class="field" id="opText" rows="1" placeholder="Operator message: authoritative, agents must follow. e.g. switch to cookie sessions, drop the JWT"></textarea>
+      <select class="field" id="opTo"><option value="">all roles</option></select>
+      <button class="btn primary" id="opBtn">Send</button>
+      <div class="hint">⌘/Ctrl+Enter to send · delivered as OPERATOR, overrides the task where they conflict</div>
+    </div>
+  </main>
+</div>
+
+<div class="modal-bg" id="modal"><div class="modal" id="modalBody"></div></div>
+<div id="toast"></div>
+
+<script>
+// ---------------------------------------------------------------------------
+// helpers
+// ---------------------------------------------------------------------------
+const $ = (s) => document.querySelector(s);
+const h = (tag, attrs, ...kids) => {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (k === "class") el.className = v;
+    else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+    else if (v !== null && v !== undefined && v !== false) el.setAttribute(k, v === true ? "" : v);
+  }
+  for (const kid of kids.flat()) if (kid !== null && kid !== undefined && kid !== false) el.append(kid.nodeType ? kid : String(kid));
+  return el;
+};
+const ts = (iso) => new Date(iso).toLocaleTimeString("en-GB", { hour12: false });
+const ago = (iso) => {
+  if (!iso) return "never";
+  const s = Math.max(0, Math.round((Date.now() - new Date(iso)) / 1000));
+  return s < 5 ? "just now" : s < 60 ? `${s}s ago` : s < 3600 ? `${Math.floor(s / 60)}m ago` : s < 86400 ? `${Math.floor(s / 3600)}h ago` : `${Math.floor(s / 86400)}d ago`;
+};
+const age = (iso) => {
+  const s = Math.max(0, Math.round((Date.now() - new Date(iso)) / 1000));
+  return s < 60 ? `${s}s` : s < 3600 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${Math.floor(s / 3600)}h`;
+};
+let toastTimer;
+function toast(msg, kind = "err") {
+  const t = $("#toast");
+  t.textContent = msg; t.className = kind; t.style.display = "block";
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => (t.style.display = "none"), 3500);
+}
+async function copy(text) {
+  try { await navigator.clipboard.writeText(text); toast("copied", "ok"); }
+  catch { const ta = h("textarea", null, text); document.body.append(ta); ta.select(); document.execCommand("copy"); ta.remove(); toast("copied", "ok"); }
+}
+function modal(content) {
+  $("#modalBody").replaceChildren(...content);
+  $("#modal").classList.add("open");
+}
+function closeModal() { $("#modal").classList.remove("open"); }
+$("#modal").addEventListener("click", (e) => { if (e.target.id === "modal") closeModal(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
+
+// ---------------------------------------------------------------------------
+// state + api
+// ---------------------------------------------------------------------------
+const state = {
+  auth: "open", channels: [], selected: null, tab: "transcript", filter: "open", search: "",
+  cache: new Map(), contract: null, tokens: [], typeFilter: "all", msgSearch: "", publicUrl: localStorage.getItem("overandout.publicUrl") || location.origin,
+};
+const adminToken = () => localStorage.getItem("overandout.admin") || "";
+// Allow ?token=... once (e.g. a link from `relay serve` output); store it and scrub it from the URL.
+{
+  const qp = new URLSearchParams(location.search);
+  if (qp.get("token")) {
+    localStorage.setItem("overandout.admin", qp.get("token"));
+    qp.delete("token");
+    history.replaceState(null, "", location.pathname + (qp.size ? `?${qp}` : "") + location.hash);
+  }
+}
+
+async function api(method, path, body) {
+  const headers = {};
+  if (body !== undefined) headers["content-type"] = "application/json";
+  if (adminToken()) headers.authorization = `Bearer ${adminToken()}`;
+  const res = await fetch(path, { method, headers, body: body !== undefined ? JSON.stringify(body) : undefined });
+  if (res.status === 401) { promptToken(); throw new Error("admin token required"); }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || res.statusText);
+  return data;
+}
+
+function promptToken() {
+  if ($("#modal").classList.contains("open") && $("#tokenInput")) return;
+  const input = h("input", { class: "field mono", id: "tokenInput", placeholder: "ra_...", value: adminToken() });
+  const save = () => { localStorage.setItem("overandout.admin", input.value.trim()); closeModal(); connect(); refresh(); };
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter") save(); });
+  modal([
+    h("h3", null, "Admin token"),
+    h("p", { class: "muted" }, "This relay runs in public mode. Paste the admin token printed by ", h("code", null, "overandout-relay serve --public"), " (also in .overandout/admin.token on the relay host)."),
+    input,
+    h("div", { class: "actions" }, h("button", { class: "btn", onclick: closeModal }, "Cancel"), h("button", { class: "btn primary", onclick: save }, "Save")),
+  ]);
+  setTimeout(() => input.focus(), 0);
+}
+$("#tokenBtn").addEventListener("click", promptToken);
+
+// routing: #channel/tab
+function route() {
+  const [ch, tab] = location.hash.slice(1).split("/");
+  state.selected = ch ? decodeURIComponent(ch) : null;
+  state.tab = tab || "transcript";
+}
+function go(ch, tab) {
+  location.hash = `${encodeURIComponent(ch || "")}${tab ? "/" + tab : ""}`;
+}
+window.addEventListener("hashchange", () => { route(); refresh(); });
+route();
+
+async function refresh() {
+  try {
+    const health = await fetch("/api/health").then((r) => r.json());
+    state.auth = health.auth;
+    $("#authBadge").textContent = health.auth === "token" ? "public · tokens" : "local · open";
+    state.channels = await api("GET", "/api/channels");
+    if (!state.selected && state.channels.length) { go(firstVisible()?.name || state.channels[0].name); return; }
+    if (state.selected && !state.channels.some((c) => c.name === state.selected)) { state.selected = null; go(""); }
+    if (state.selected) {
+      const entry = state.cache.get(state.selected) || { messages: [], cursor: 0 };
+      const fresh = await api("GET", `/api/channels/${enc(state.selected)}/messages?since=${entry.cursor}&limit=2000`);
+      if (fresh.length) { entry.messages.push(...fresh); entry.cursor = fresh[fresh.length - 1].id; }
+      state.cache.set(state.selected, entry);
+      state.contract = await api("GET", `/api/channels/${enc(state.selected)}/contract`);
+      if (state.tab === "agents") state.tokens = await api("GET", `/api/channels/${enc(state.selected)}/tokens`);
+    }
+    render();
+  } catch (e) { if (e.message !== "admin token required") toast(e.message); }
+}
+const enc = encodeURIComponent;
+const visible = () => state.channels.filter((c) => (state.filter === "all" || c.status !== "closed") && c.name.toLowerCase().includes(state.search.toLowerCase()));
+const firstVisible = () => visible()[0];
+
+// ---------------------------------------------------------------------------
+// render
+// ---------------------------------------------------------------------------
+function render() {
+  renderList();
+  const ch = state.channels.find((c) => c.name === state.selected);
+  renderHead(ch);
+  renderTabs(ch);
+  for (const p of document.querySelectorAll(".pane")) p.hidden = p.id !== `pane-${state.tab}`;
+  if (ch) {
+    if (state.tab === "transcript") renderTranscript(ch);
+    if (state.tab === "pending") renderPending(ch);
+    if (state.tab === "agents") renderAgents(ch);
+    if (state.tab === "contract") renderContract(ch);
+    if (state.tab === "task") renderTask(ch);
+  } else {
+    $("#pane-transcript").replaceChildren(h("div", { class: "empty" }, state.channels.length ? "Select a channel" : "No channels yet. Create one on the left."));
+  }
+  renderComposer(ch);
+  const attention = state.channels.reduce((n, c) => n + c.pending_asks.length + (c.status === "complete" ? 1 : 0), 0);
+  document.title = attention ? `(${attention}) overandout` : "overandout";
+}
+
+const glyph = (r) => (r.status === "present" && !r.live ? "stale" : r.status);
+
+function renderList() {
+  const list = visible();
+  $("#count").textContent = `${list.length}/${state.channels.length}`;
+  $("#channels").replaceChildren(...list.map((c) =>
+    h("div", { class: `card ${c.name === state.selected ? "sel" : ""}`, onclick: () => go(c.name, state.tab) },
+      h("div", { class: "row" }, h("span", { class: "name" }, c.name), h("span", { class: `pill ${c.status}` }, c.status)),
+      h("div", { class: "chips" },
+        c.roster.map((r) => h("span", { class: `chip ${glyph(r)}`, title: `${r.status}${r.scope ? " · " + r.scope : ""} · seen ${ago(r.last_seen)}` }, h("i"), r.role)),
+        c.pending_asks.length ? h("span", { class: "attn pulse" }, `${c.pending_asks.length} waiting`) : null,
+      ),
+    ),
+  ));
+  if (!list.length) $("#channels").replaceChildren(h("div", { class: "empty" }, state.channels.length ? "No channels match" : "No channels yet"));
+}
+
+function renderHead(ch) {
+  const head = $("#head");
+  if (!ch) return head.replaceChildren(h("h2", null, "overandout"), h("span", { class: "muted" }, "coordination channels for coding agents"));
+  const closed = ch.status === "closed";
+  head.replaceChildren(
+    h("h2", null, ch.name),
+    h("span", { class: `pill ${ch.status}` }, ch.status),
+    ...ch.roster.map((r) => h("span", { class: `chip ${glyph(r)}`, title: `seen ${ago(r.last_seen)}${r.scope ? " · " + r.scope : ""}` }, h("i"), `${r.role} · ${glyph(r)}`)),
+    h("span", { class: "grow" }),
+    h("span", { class: "muted", style: "font-size:11px" }, `${ch.message_count} msgs · ${ago(ch.created_at)}`),
+    closed ? null : h("button", { class: "btn sm", onclick: () => closeChannel(ch) }, "Close"),
+    h("button", { class: "btn sm danger", onclick: () => deleteChannel(ch) }, "Delete"),
+  );
+}
+
+function renderTabs(ch) {
+  const tabs = $("#tabs");
+  if (!ch) return tabs.replaceChildren();
+  const entry = state.cache.get(ch.name);
+  const defs = [
+    ["transcript", "Transcript", entry?.messages.length || 0, false],
+    ["pending", "Pending asks", ch.pending_asks.length, ch.pending_asks.length > 0],
+    ["agents", "Agents & invites", ch.roster.filter((r) => r.status === "present" || r.status === "done").length, false],
+    ["contract", "Contract", state.contract?.exists ? "✓" : "–", false],
+    ["task", "Task", ch.task ? "✓" : "–", !ch.task],
+  ];
+  tabs.replaceChildren(...defs.map(([id, label, n, warn]) =>
+    h("button", { class: state.tab === id ? "on" : "", onclick: () => go(ch.name, id) }, label, h("span", { class: `n ${warn ? "warn" : ""}` }, n)),
+  ));
+}
+
+function renderTranscript(ch) {
+  const pane = $("#pane-transcript");
+  const entry = state.cache.get(ch.name);
+  const pending = new Map(ch.pending_asks.map((a) => [a.id, a]));
+  const types = ["all", "ASK", "REPLY", "INFO", "HOLD", "OPERATOR", "DONE", "SYSTEM"];
+  const filters = h("div", { class: "filters" },
+    ...types.map((t) => h("button", { class: `fchip ${state.typeFilter === t ? "on" : ""}`, onclick: () => { state.typeFilter = t; renderTranscript(ch); } }, t === "all" ? "All" : t)),
+    h("input", { class: "field", placeholder: "search messages", value: state.msgSearch, oninput: (e) => { state.msgSearch = e.target.value; renderTranscript(ch); } }),
+  );
+  const rows = (entry?.messages || []).filter((m) =>
+    (state.typeFilter === "all" || m.type === state.typeFilter) && (!state.msgSearch || m.body.toLowerCase().includes(state.msgSearch.toLowerCase()) || m.from_role.toLowerCase().includes(state.msgSearch.toLowerCase())),
+  );
+  const stick = pane.scrollTop + pane.clientHeight >= pane.scrollHeight - 80;
+  pane.replaceChildren(filters, ...(rows.length ? rows.map((m) =>
+    h("div", { class: `msg ${m.type}`, id: `m${m.id}` },
+      h("div", { class: "t" }, ts(m.created_at)),
+      h("div", { class: "type" }, m.type),
+      h("div", null,
+        h("div", { class: "from" }, h("b", null, m.from_role), m.to_role ? ` → ${m.to_role}` : "", h("span", { class: "ref" }, `#${m.id}`),
+          m.reply_to ? h("span", { class: "ref" }, `re #${m.reply_to}`) : null,
+          pending.has(m.id) ? h("span", { class: "age pulse" }, "waiting ", h("span", { "data-age": m.created_at }, age(m.created_at))) : null),
+        h("div", { class: "body" }, m.body),
+      ),
+    )) : [h("div", { class: "empty" }, "No messages match")]));
+  if (stick) pane.scrollTop = pane.scrollHeight;
+}
+
+function renderPending(ch) {
+  const pane = $("#pane-pending");
+  if (!ch.pending_asks.length) return pane.replaceChildren(h("div", { class: "empty" }, "No unanswered questions. Agents are either working or waiting."));
+  pane.replaceChildren(...ch.pending_asks.map((a) => {
+    const ta = h("textarea", { class: "field", placeholder: `Answer as operator on behalf of ${a.to}. The asker unblocks immediately.` });
+    const btn = h("button", { class: "btn primary", onclick: async () => {
+      if (!ta.value.trim()) return;
+      btn.disabled = true;
+      try { await api("POST", `/api/channels/${enc(ch.name)}/reply`, { ask_id: a.id, body: ta.value }); toast(`answered #${a.id}`, "ok"); }
+      catch (e) { toast(e.message); btn.disabled = false; }
+    } }, "Answer");
+    ta.addEventListener("keydown", (e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") btn.click(); });
+    return h("div", { class: "ask" },
+      h("div", null,
+        h("div", { class: "who" }, `#${a.id}  ${a.from} → ${a.to}  ·  waiting `, h("span", { "data-age": a.created_at }, age(a.created_at))),
+        h("div", { class: "q" }, a.body),
+        h("div", { class: "muted", style: "margin-top:8px;font-size:12px" }, `${a.to} has not replied. Nudge it ("check relay inbox") or answer here.`),
+      ),
+      h("div", { class: "answer" }, ta, btn),
+    );
+  }));
+}
+
+function renderAgents(ch) {
+  const pane = $("#pane-agents");
+  const tokensByRole = new Map(state.tokens.map((t) => [t.role, t]));
+  const urlInput = h("input", { class: "field mono", value: state.publicUrl, style: "max-width:420px", onchange: (e) => { state.publicUrl = e.target.value.replace(/\/$/, ""); localStorage.setItem("overandout.publicUrl", state.publicUrl); renderAgents(ch); } });
+  const table = h("table", { class: "table" },
+    h("thead", null, h("tr", null, ...["Role", "Status", "Last seen", "Scope", "Token", ""].map((x) => h("th", null, x)))),
+    h("tbody", null, ...ch.roster.map((r) => {
+      const t = tokensByRole.get(r.role);
+      return h("tr", null,
+        h("td", null, h("b", null, r.role)),
+        h("td", null, h("span", { class: `chip ${glyph(r)}` }, h("i"), glyph(r))),
+        h("td", { class: "muted" }, ago(r.last_seen)),
+        h("td", { class: "mono muted" }, r.scope || "–"),
+        h("td", null, t ? h("span", { class: "tok" }, t.token) : h("span", { class: "muted" }, "none (local sessions join by name)")),
+        h("td", { style: "white-space:nowrap" },
+          t ? h("button", { class: "btn sm", onclick: () => copy(t.token) }, "Copy") : null, " ",
+          h("button", { class: "btn sm", onclick: () => mintToken(ch, r.role) }, t ? "Regenerate" : "Create token"), " ",
+          t ? h("button", { class: "btn sm danger", onclick: () => revoke(ch, t) }, "Revoke") : null, " ",
+          t ? h("button", { class: "btn sm", onclick: () => showSnippets(ch, t) }, "Setup snippets") : null,
+        ),
+      );
+    })),
+  );
+  pane.replaceChildren(
+    table,
+    h("div", { class: "section" },
+      h("h3", null, "Inviting a remote agent"),
+      h("p", { class: "muted", style: "margin:0" }, "A token fixes the agent's channel and role, works over MCP (header) and REST (overandout CLI), and survives reconnects. Regenerating revokes the previous one."),
+      h("div", null, h("span", { class: "muted" }, "Public URL used in snippets: "), urlInput),
+    ),
+  );
+}
+
+async function mintToken(ch, role) {
+  try {
+    const t = await api("POST", `/api/channels/${enc(ch.name)}/tokens`, { role });
+    state.tokens = await api("GET", `/api/channels/${enc(ch.name)}/tokens`);
+    renderAgents(ch);
+    showSnippets(ch, t);
+  } catch (e) { toast(e.message); }
+}
+async function revoke(ch, t) {
+  if (!confirm(`Revoke the ${t.role} token? That agent will be disconnected.`)) return;
+  try { await api("DELETE", `/api/channels/${enc(ch.name)}/tokens/${enc(t.token)}`); state.tokens = await api("GET", `/api/channels/${enc(ch.name)}/tokens`); renderAgents(ch); } catch (e) { toast(e.message); }
+}
+function snip(title, text) {
+  return h("div", null, h("h3", null, title), h("div", { class: "snipwrap" }, h("pre", { class: "snip" }, text), h("button", { class: "btn sm copy", onclick: () => copy(text) }, "copy")));
+}
+function showSnippets(ch, t) {
+  const url = state.publicUrl, mcp = `${url}/mcp`;
+  const prompt = [
+    `You are the ${t.role} agent on a shared task coordinated through overandout.`,
+    `Run: pip install overandout && overandout login --url ${url} --token ${t.token}`,
+    `Then run: overandout protocol   and follow those instructions exactly (join first; it returns your task).`,
+    `Always call it as: overandout --as ${t.role} <command>   (join, inbox, ask, reply, post, contract, wait, done).`,
+    `Blocking commands return "timeout" after ~45 s when nothing happened; just run them again.`,
+  ].join("\n");
+  modal([
+    h("h3", null, `${ch.name} / ${t.role} setup`),
+    h("div", { class: "muted" }, "Token: ", h("span", { class: "tok" }, t.token), " ", h("button", { class: "btn sm", onclick: () => copy(t.token) }, "copy")),
+    snip("Prompt for the agent (recommended, no MCP setup)", prompt),
+    h("details", null, h("summary", { class: "muted", style: "cursor:pointer" }, "Or connect it as an MCP server"),
+      snip("Kilo (~/.config/kilo/kilo.jsonc, then restart Kilo)", `"mcp": { "overandout": { "type": "remote", "url": "${mcp}", "headers": { "Authorization": "Bearer ${t.token}" } } },\n"permission": { "overandout_*": "allow" }`),
+      snip("Claude Code", `claude mcp add --transport http overandout ${mcp} --header "Authorization: Bearer ${t.token}"`),
+      snip("Cursor (.cursor/mcp.json)", `{ "mcpServers": { "overandout": { "url": "${mcp}", "headers": { "Authorization": "Bearer ${t.token}" } } } }`),
+    ),
+    h("div", { class: "actions" }, h("button", { class: "btn", onclick: closeModal }, "Close")),
+  ]);
+}
+
+function renderContract(ch) {
+  const pane = $("#pane-contract");
+  const c = state.contract || { path: null, exists: false, content: "" };
+  const ta = h("textarea", { class: "field", style: "min-height:360px;width:100%", placeholder: "openapi: 3.1.0\n..." }, c.content);
+  const save = h("button", { class: "btn primary", onclick: async () => {
+    try { await api("PUT", `/api/channels/${enc(ch.name)}/contract`, { content: ta.value }); toast("contract saved and announced", "ok"); } catch (e) { toast(e.message); }
+  } }, "Save & announce");
+  pane.replaceChildren(h("div", { class: "section" },
+    h("div", { class: "muted" }, c.exists ? `${c.path} · ${c.content.split("\n").length} lines` : `${c.path || "no contract path"} · not written yet`),
+    ta,
+    h("div", { style: "display:flex;gap:8px;justify-content:space-between;align-items:center" },
+      h("span", { class: "muted", style: "font-size:12px" }, "Agents read this with contract_get / overandout contract. Saving posts a diff summary to the channel."),
+      ch.status === "closed" ? null : save),
+  ));
+}
+
+function renderTask(ch) {
+  const pane = $("#pane-task");
+  const ta = h("textarea", { class: "field", style: "min-height:300px;width:100%", placeholder: "What the agents in this channel should build. Say who owns what, contract first, and 'done then wait'." }, ch.task || "");
+  const pub = h("button", { class: "btn primary", onclick: async () => {
+    if (!ta.value.trim()) return toast("task is empty");
+    try { await api("POST", `/api/channels/${enc(ch.name)}/publish`, { task: ta.value }); toast(ch.task ? "task updated" : "task published", "ok"); } catch (e) { toast(e.message); }
+  } }, ch.task ? "Republish" : "Publish");
+  pane.replaceChildren(h("div", { class: "section" },
+    h("div", { class: "muted" }, ch.task ? "Republishing posts a 'task updated' notice to every agent." : "Agents block in join until a task is published and all roles are present."),
+    ta,
+    h("div", { style: "display:flex;justify-content:flex-end" }, ch.status === "closed" ? null : pub),
+  ));
+}
+
+function renderComposer(ch) {
+  const box = $("#composer");
+  box.hidden = !ch || ch.status === "closed";
+  if (box.hidden) return;
+  const sel = $("#opTo");
+  const cur = sel.value;
+  sel.replaceChildren(h("option", { value: "" }, "all roles"), ...ch.roles.map((r) => h("option", { value: r }, r)));
+  sel.value = cur;
+}
+
+// ---------------------------------------------------------------------------
+// actions
+// ---------------------------------------------------------------------------
+async function closeChannel(ch) {
+  if (!confirm(`Close "${ch.name}"? Agents waiting in the channel will be released.`)) return;
+  try { await api("POST", `/api/channels/${enc(ch.name)}/close`); } catch (e) { toast(e.message); }
+}
+function deleteChannel(ch) {
+  const input = h("input", { class: "field mono", placeholder: ch.name });
+  const btn = h("button", { class: "btn danger", disabled: true, onclick: async () => {
+    try { await api("DELETE", `/api/channels/${enc(ch.name)}`); state.cache.delete(ch.name); closeModal(); go(""); toast(`deleted ${ch.name}`, "ok"); } catch (e) { toast(e.message); }
+  } }, "Delete permanently");
+  input.addEventListener("input", () => { btn.disabled = input.value !== ch.name; });
+  modal([
+    h("h3", null, `Delete "${ch.name}"`),
+    h("p", { class: "muted" }, "Removes the channel, its transcript, roster and agent tokens. The contract file on disk is kept. Type the channel name to confirm."),
+    input,
+    h("div", { class: "actions" }, h("button", { class: "btn", onclick: closeModal }, "Cancel"), btn),
+  ]);
+  setTimeout(() => input.focus(), 0);
+}
+$("#newChannel").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  try {
+    const ch = await api("POST", "/api/channels", { name: f.name.value.trim(), roles: f.roles.value.split(",").map((s) => s.trim()).filter(Boolean) });
+    f.reset(); go(ch.name, "task");
+  } catch (err) { toast(err.message); }
+});
+async function sendOperator() {
+  const body = $("#opText").value.trim();
+  if (!body || !state.selected) return;
+  try { await api("POST", `/api/channels/${enc(state.selected)}/post`, { body, to_role: $("#opTo").value || undefined }); $("#opText").value = ""; } catch (e) { toast(e.message); }
+}
+$("#opBtn").addEventListener("click", sendOperator);
+$("#opText").addEventListener("keydown", (e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") sendOperator(); });
+for (const b of document.querySelectorAll(".seg button")) b.addEventListener("click", () => {
+  state.filter = b.dataset.f;
+  for (const x of document.querySelectorAll(".seg button")) x.classList.toggle("on", x === b);
+  renderList();
+});
+$("#search").addEventListener("input", (e) => { state.search = e.target.value; renderList(); });
+
+// theme
+const applyTheme = (t) => { document.documentElement.dataset.theme = t; localStorage.setItem("overandout.theme", t); };
+applyTheme(localStorage.getItem("overandout.theme") || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark"));
+$("#themeBtn").addEventListener("click", () => applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));
+
+// live updates: SSE, with a polling fallback for proxies/tunnels that buffer event streams.
+let es, pollTimer, sseFailures = 0;
+const forcePoll = new URLSearchParams(location.search).get("poll") === "1";
+function startPolling() {
+  es?.close(); es = null;
+  clearInterval(pollTimer);
+  pollTimer = setInterval(refresh, 3000);
+  $("#conn").textContent = "polling"; $("#conn").className = "badge";
+}
+function connect() {
+  es?.close(); clearInterval(pollTimer);
+  if (forcePoll) return startPolling();
+  es = new EventSource(`/api/events${adminToken() ? `?token=${encodeURIComponent(adminToken())}` : ""}`);
+  es.addEventListener("change", refresh);
+  es.onopen = () => { sseFailures = 0; $("#conn").textContent = "live"; $("#conn").className = "badge live"; };
+  es.onerror = () => {
+    $("#conn").textContent = "reconnecting"; $("#conn").className = "badge off";
+    // A 401 shows up through api() -> promptToken(); here we only decide whether SSE is viable at all.
+    if (++sseFailures >= 3) startPolling();
+  };
+}
+connect();
+refresh();
+setInterval(() => { for (const el of document.querySelectorAll("[data-age]")) el.textContent = age(el.dataset.age); }, 1000);
+</script>
+</body>
+</html>

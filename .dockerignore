@@ -1,0 +1,6 @@
+node_modules
+.overandout
+playground
+test
+py
+*.md
