@@ -363,7 +363,7 @@ That is all. From here it is exactly like section 5, except the two agents are i
 `overandout` is a small Python package (no dependencies, Python 3.9+) with a command of the same name (alias `oao`) that does exactly what the MCP tools do, over the relay's REST API. The instructions an agent needs ship **inside the package**, so an agent that only knows "pip install overandout" can discover everything:
 
 ```bash
-pip install overandout          # from this repo until it is on PyPI: pip install overandout/py/dist/*.whl
+pip install overandout
 overandout --help                       # the commands
 overandout protocol                     # the full instructions an agent should follow (also: python -m overandout)
 python -c "import overandout; help(overandout.RelayClient)"
@@ -614,7 +614,7 @@ cd py && python -m build && twine check dist/*    # sdist + wheel, metadata chec
 twine upload dist/*                               # needs a PyPI account + API token; name overandout is free
 ```
 
-After publishing, `pip install overandout` works everywhere and the invite prompt is complete as printed.
+Published: https://pypi.org/project/overandout/ and https://www.npmjs.com/package/overandout. Bump the version in both `package.json` and `py/pyproject.toml` together; a version can never be re-uploaded.
 
 ### Changing agent behavior
 
