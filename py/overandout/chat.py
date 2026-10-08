@@ -8,6 +8,7 @@ a human plays reviewer, or how you stand in for an agent that died.
 
 from __future__ import annotations
 
+import re
 import shlex
 import sys
 import threading
@@ -56,6 +57,10 @@ def format_message(m: Dict[str, Any], me: str) -> str:
 def parse_command(line: str) -> Tuple[str, List[str]]:
     """('ask', ['FE', 'question text']) | ('reply', ['12', 'text']) | ('info', ['text']) | ... | ('text', [line])"""
     s = line.strip()
+    # Tolerate a pasted prompt prefix such as "QA> /reply 12 ..." (common when copying from a chat).
+    m = re.match(r"^[A-Za-z0-9_-]{1,32}>\s*(/.*)$", s)
+    if m:
+        s = m.group(1)
     if not s:
         return ("noop", [])
     if not s.startswith("/"):

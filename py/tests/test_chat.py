@@ -50,6 +50,9 @@ class ChatTests(unittest.TestCase):
         self.assertEqual(parse_command("/?"), ("help", []))
         self.assertEqual(parse_command("   "), ("noop", []))
         self.assertEqual(parse_command("/wat"), ("unknown", ["wat"]))
+        # a pasted prompt prefix must not turn a command into an INFO broadcast
+        self.assertEqual(parse_command("QA> /reply 354 yes"), ("reply", ["354", "yes"]))
+        self.assertEqual(parse_command("BE> hello"), ("info", ["BE> hello"]), "plain text keeps its prefix; only commands are rescued")
 
     def test_format_message_hints(self) -> None:
         ask = {"id": 346, "type": "ASK", "from_role": "FE", "to_role": "BE", "body": "UTC?", "reply_to": None, "created_at": "2026-10-08T18:40:00.000Z"}
