@@ -229,3 +229,18 @@ test("deleting a channel under a blocked waiter fails that waiter only; the rela
   assert.equal(t2.status, 201);
   assert.equal((await api("POST", "/api/channels/alive/publish", { task: "ok" })).status, 200);
 });
+
+test("polling join is idempotent: one 'joined' notice however many times the same agent calls it", async () => {
+  await api("POST", "/api/channels", { name: "poll", roles: ["A", "B"] });
+  const tok = (await api("POST", "/api/channels/poll/tokens", { role: "A" })).data;
+  const a = rest(tok.token);
+  for (let i = 0; i < 25; i++) await a.post("/agent/join", { scope: "x/**", timeout_seconds: 0 });
+  const joins = running.relay.messages("poll").filter((m) => m.type === "SYSTEM" && /^A joined/.test(m.body));
+  assert.equal(joins.length, 1, "repeat polls must not re-announce the join");
+  // A scope change is worth one line; a repeat of the same scope is not.
+  await a.post("/agent/join", { scope: "y/**", timeout_seconds: 0 });
+  await a.post("/agent/join", { scope: "y/**", timeout_seconds: 0 });
+  const scopeNotes = running.relay.messages("poll").filter((m) => m.body === "A scope is now y/**");
+  assert.equal(scopeNotes.length, 1);
+  assert.equal(running.relay.who("poll").roster[0].scope, "y/**");
+});

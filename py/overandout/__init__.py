@@ -164,6 +164,25 @@ class RelayClient:
     def _chunk(deadline: float) -> int:
         return max(0, min(_CHUNK_SECONDS, int(deadline - time.monotonic())))
 
+    def _poll(self, path: str, body: Dict[str, Any], deadline: float) -> Dict[str, Any]:
+        """One long-poll request. If the server answered 'nothing yet' faster than a second (a proxy
+        or a relay with a small --max-wait), pace to at most one request per second."""
+        t0 = time.monotonic()
+        r = self._call("POST", path, {**body, "timeout_seconds": self._chunk(deadline)})["result"]
+        elapsed = time.monotonic() - t0
+        if r.get("status") in ("waiting", "timeout") and elapsed < 1:
+            time.sleep(max(0.0, min(1 - elapsed, deadline - time.monotonic())))
+        return r
+
+    @staticmethod
+    def _expired(deadline: float) -> bool:
+        """True when less than a second of budget is left: never issue another poll in that window.
+
+        Without this guard the final sub-second of a wait degenerates into a tight loop of
+        zero-timeout requests (the server answers instantly, the loop spins until the deadline).
+        """
+        return deadline - time.monotonic() < 1
+
     # ------------------------------------------------------------------ identity
 
     def me(self) -> Dict[str, Any]:
@@ -180,9 +199,9 @@ class RelayClient:
         """
         deadline = time.monotonic() + timeout
         while True:
-            r = self._call("POST", "/agent/join", {"scope": scope, "timeout_seconds": self._chunk(deadline)})
-            if r["result"]["status"] != "waiting" or time.monotonic() >= deadline:
-                return r["result"]
+            r = self._poll("/agent/join", {"scope": scope}, deadline)
+            if r["status"] != "waiting" or self._expired(deadline):
+                return r
 
     def who(self) -> Dict[str, Any]:
         return self._call("GET", "/agent/who")["result"]
@@ -204,10 +223,10 @@ class RelayClient:
         while waiting (including questions for you); handle them.
         """
         deadline = time.monotonic() + timeout
-        r = self._call("POST", "/agent/ask", {"to_role": to_role, "question": question, "timeout_seconds": self._chunk(deadline)})["result"]
+        r = self._poll("/agent/ask", {"to_role": to_role, "question": question}, deadline)
         others: List[Dict[str, Any]] = []
-        while r["status"] == "timeout" and time.monotonic() < deadline:
-            w = self._call("POST", "/agent/wait", {"timeout_seconds": self._chunk(deadline)})["result"]
+        while r["status"] == "timeout" and not self._expired(deadline):
+            w = self._poll("/agent/wait", {}, deadline)
             for m in w["inbox"]["messages"]:
                 if m["type"] == "REPLY" and m.get("reply_to") == r["ask_id"]:
                     r = {"status": "answered", "ask_id": r["ask_id"], "reply": m, "hint": "Continue with this answer."}
@@ -229,16 +248,16 @@ class RelayClient:
         """Block until a message arrives for you or the channel closes. Returns the wait result."""
         deadline = time.monotonic() + timeout
         while True:
-            r = self._call("POST", "/agent/wait", {"timeout_seconds": self._chunk(deadline)})["result"]
-            if r["status"] != "timeout" or time.monotonic() >= deadline:
+            r = self._poll("/agent/wait", {}, deadline)
+            if r["status"] != "timeout" or self._expired(deadline):
                 return r
 
     def done(self, summary: str, timeout: float = 0) -> Dict[str, Any]:
         """Mark your role finished. With ``timeout`` > 0 it then waits like ``wait``."""
         deadline = time.monotonic() + timeout
-        r = self._call("POST", "/agent/done", {"summary": summary, "timeout_seconds": self._chunk(deadline)})["result"]
-        while r["status"] == "timeout" and time.monotonic() < deadline:
-            r = self._call("POST", "/agent/done", {"summary": summary, "timeout_seconds": self._chunk(deadline)})["result"]
+        r = self._poll("/agent/done", {"summary": summary}, deadline)
+        while r["status"] == "timeout" and not self._expired(deadline):
+            r = self._poll("/agent/done", {"summary": summary}, deadline)
         return r
 
     # ------------------------------------------------------------------ contract

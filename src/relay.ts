@@ -356,12 +356,21 @@ export class Relay {
     for (const m of this.store.listMembersBySession(identity)) {
       if (m.channel === name && m.role !== role) this.store.setMemberStatus(name, m.role, "left");
     }
-    const wasDone = existing?.status === "done";
     this.seen(identity);
-    this.store.upsertMember({ channel: name, role, session_id: identity, scope, status: wasDone ? "done" : "present" });
-    this.systemPost(name, `${role} joined${scope ? ` (scope: ${scope})` : ""}${existing ? " (rejoin)" : ""}`);
-    this.recomputeStatus(name);
-    this.touch();
+    const alreadyHere = existing !== undefined && existing.session_id === identity && existing.status !== "left";
+    if (alreadyHere) {
+      // Agents call join repeatedly while waiting for the roster; that is a poll, not a new arrival.
+      if (scope && scope !== existing.scope) {
+        this.store.upsertMember({ channel: name, role, session_id: identity, scope, status: existing.status });
+        this.systemPost(name, `${role} scope is now ${scope}`);
+      }
+    } else {
+      const wasDone = existing?.status === "done";
+      this.store.upsertMember({ channel: name, role, session_id: identity, scope, status: wasDone ? "done" : "present" });
+      this.systemPost(name, `${role} joined${scope ? ` (scope: ${scope})` : ""}${existing ? " (rejoin)" : ""}`);
+      this.recomputeStatus(name);
+      this.touch();
+    }
 
     const result = await this.waitUntil(() => {
       const c = this.channel(name);
