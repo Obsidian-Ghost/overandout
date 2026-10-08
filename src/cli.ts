@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { readFileSync, existsSync } from "node:fs";
+import { networkInterfaces } from "node:os";
 import { serve, VERSION } from "./server.ts";
 
 const HELP = `overandout-relay ${VERSION}: the relay server for overandout (npm package "overandout"), channel-based coordination for coding agents (MCP + REST + dashboard)
@@ -142,6 +143,15 @@ async function main(argv: string[]): Promise<void> {
       console.log(`overandout-relay ${VERSION} listening on ${running.url}${running.public ? "  [PUBLIC: tokens required]" : "  [open: localhost only]"}`);
       console.log(`  dashboard    : ${running.url}/`);
       console.log(`  MCP endpoint : ${running.mcpUrl}`);
+      const bindHost = typeof flags.host === "string" ? flags.host : "127.0.0.1";
+      if (bindHost === "0.0.0.0" || bindHost === "::") {
+        const port = new URL(running.url).port;
+        const lan = Object.values(networkInterfaces())
+          .flat()
+          .filter((i) => i && !i.internal && i.family === "IPv4")
+          .map((i) => `http://${i!.address}:${port}`);
+        console.log(`  reachable at : ${lan.join(", ") || "(no external IPv4 interface found)"}  <- use this in invites (--url)`);
+      }
       console.log(`  contracts dir: ${running.relay.contractsDir}/`);
       console.log(`  channels     : ${running.relay.listChannels().map((c) => `${c.name}[${c.status}]`).join(", ") || "(none)"}`);
       if (running.public) {
