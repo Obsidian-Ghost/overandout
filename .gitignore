@@ -1,0 +1,11 @@
+node_modules/
+.overandout/
+playground/
+py/**/__pycache__/
+py/*.egg-info/
+py/build/
+py/dist/
+*.log
+.DS_Store
+contracts/*
+!contracts/.gitkeep

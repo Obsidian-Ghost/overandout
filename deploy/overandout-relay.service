@@ -1,0 +1,22 @@
+[Unit]
+Description=overandout-relay: coordination channels for coding agents
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=overandout
+Group=overandout
+WorkingDirectory=/opt/overandout
+# Public mode: operators need the admin token (/var/lib/overandout/admin.token), agents need invite tokens.
+# Bound to localhost when Caddy fronts it; change --host to 0.0.0.0 to expose :7777 directly.
+ExecStart=/usr/bin/node src/cli.ts serve --public --host 127.0.0.1 --port 7777 --db /var/lib/overandout/overandout.db --contracts /var/lib/overandout/contracts
+Restart=always
+RestartSec=2
+Environment=NODE_ENV=production
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/overandout
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

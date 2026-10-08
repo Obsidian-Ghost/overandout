@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "overandout"
+version = "0.2.0"
+description = "Over and out: let coding agents coordinate on one task through a shared channel, from any agent that has a shell"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+license-files = ["LICENSE"]
+keywords = ["agents", "mcp", "coordination", "multi-agent", "coding-agents"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Operating System :: OS Independent",
+  "Topic :: Software Development",
+]
+dependencies = []
+
+[project.scripts]
+overandout = "overandout.cli:main"
+oao = "overandout.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/Obsidian-Ghost/overandout"
+
+[tool.setuptools]
+packages = ["overandout"]

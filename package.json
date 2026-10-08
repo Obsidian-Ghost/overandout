@@ -1,0 +1,43 @@
+{
+  "name": "overandout-relay",
+  "version": "0.2.0",
+  "description": "Over and out: the relay server that lets coding agents coordinate on one task through shared channels (MCP + REST + dashboard)",
+  "keywords": [
+    "agents",
+    "mcp",
+    "coordination",
+    "multi-agent",
+    "coding-agents",
+    "relay"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/Obsidian-Ghost/overandout#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Obsidian-Ghost/overandout.git"
+  },
+  "type": "module",
+  "bin": {
+    "overandout-relay": "./src/cli.ts"
+  },
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "serve": "node src/cli.ts serve",
+    "test": "node --test \"test/**/*.test.ts\""
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.20.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.0"
+  }
+}

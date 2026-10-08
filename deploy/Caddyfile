@@ -1,0 +1,10 @@
+# Automatic HTTPS for the relay. Replace OVERANDOUT_DOMAIN (install.sh does this with --domain).
+OVERANDOUT_DOMAIN {
+	reverse_proxy 127.0.0.1:7777 {
+		# SSE (/api/events) needs streaming, Caddy does this by default; keep idle streams alive.
+		transport http {
+			read_timeout 0
+		}
+	}
+	encode gzip
+}
