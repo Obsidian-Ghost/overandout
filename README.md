@@ -579,6 +579,7 @@ src/store.ts      SQLite tables and queries
 src/relay.ts      core logic (the Relay class): channels, join/ask/reply/inbox/wait/done, tokens, liveness, contract
 src/mcp.ts        the 10 MCP tools, bearer auth, token-bound defaults
 src/server.ts     HTTP routes: /mcp, /agent/* (REST), /api/* (operator), SSE, dashboard
+src/version.ts    the version constant (bumped by release-please)
 src/contract.ts   contracts/ file watcher + diff summary
 src/cli.ts        the `overandout-relay` command
 src/ui.html       the dashboard (vanilla HTML/CSS/JS, no build)
@@ -587,6 +588,7 @@ test/seed-demo.ts seeds a demo scenario against a running relay
 py/               Python package `overandout` (RelayClient + the `overandout` / `oao` command)
 deploy/           install.sh, systemd unit, Caddyfile for a Linux server
 Dockerfile        public-mode relay in a container (state in /data)
+RELEASING.md      how versions and publishing work (release-please + Trusted Publishing)
 ```
 
 ### Deploy to a Linux server (optional)
@@ -606,15 +608,17 @@ docker build -t overandout-relay .
 docker run -d -p 7777:7777 -v relay-data:/data -e OVERANDOUT_ADMIN_TOKEN=ra_yourtoken overandout-relay
 ```
 
-### Python package: tests, build, publish
+### Releasing
+
+Automatic, see [RELEASING.md](RELEASING.md): merge PRs with Conventional Commit titles (`feat:`, `fix:`), release-please opens a `chore(release): vX.Y.Z` PR that bumps every version string in lockstep, and merging it tags, creates the GitHub Release, and publishes `overandout` to npm and PyPI through Trusted Publishing. No tokens, no manual version edits.
+
+Local checks before pushing:
 
 ```bash
-python -m unittest discover -s py/tests -t py     # 6 tests against a scripted fake relay
-cd py && python -m build && twine check dist/*    # sdist + wheel, metadata check
-twine upload dist/*                               # needs a PyPI account + API token; name overandout is free
+npm test && npx tsc -p .                             # relay
+python -m unittest discover -s py/tests -t py        # client
+cd py && python -m build && twine check dist/*       # package metadata
 ```
-
-Published: https://pypi.org/project/overandout/ and https://www.npmjs.com/package/overandout. Bump the version in both `package.json` and `py/pyproject.toml` together; a version can never be re-uploaded.
 
 ### Changing agent behavior
 

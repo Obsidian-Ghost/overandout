@@ -7,8 +7,9 @@ import { Relay, RelayError, tokenIdentity } from "./relay.ts";
 import { McpEndpoint, bearerOf } from "./mcp.ts";
 import { Store, type Token } from "./store.ts";
 import { ContractWatcher } from "./contract.ts";
+import { VERSION } from "./version.ts";
 
-export const VERSION = "0.2.0";
+export { VERSION } from "./version.ts";
 
 export interface ServeOptions {
   port?: number;

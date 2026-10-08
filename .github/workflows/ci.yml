@@ -1,23 +1,107 @@
-name: ci
+# CI: type-check and test the relay (Node) and the client (Python), prove both packages build and install.
+name: CI
+
 on:
+  pull_request:
   push:
     branches: [main]
-  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  node:
+  relay:
+    name: relay (node 24)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 24 }
-      - run: npm ci
-      - run: npx tsc -p .
-      - run: npm test
-  python:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc -p .
+
+      - name: Test
+        run: npm test
+
+  client:
+    name: client (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.13"]  # supported floor and current
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install
+        run: python -m pip install --upgrade pip && python -m pip install -e py
+
+      - name: Test
+        run: python -m unittest discover -s py/tests -t py -v
+
+  build:
+    name: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: "3.12" }
-      - run: python -m pip install -e py
-      - run: python -m unittest discover -s py/tests -t py -v
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Pack npm tarball and run the CLI from it
+        run: |
+          set -eu
+          npm ci && npm pack
+          mkdir /tmp/consumer && cd /tmp/consumer && npm init -y >/dev/null
+          npm install "$GITHUB_WORKSPACE"/*.tgz
+          ./node_modules/.bin/overandout-relay help | head -1
+
+      - name: Build Python sdist + wheel
+        run: python -m pip install --upgrade pip build twine && python -m build py --outdir dist && twine check --strict dist/*
+
+      - name: Install wheel and run the client
+        run: |
+          set -eu
+          python -m pip install dist/*.whl
+          overandout --version && oao --version
+          python -m overandout | head -1
+          python -c "import overandout; print(overandout.__version__)"
+
+      - name: Versions agree (package.json, pyproject, version.ts, __init__)
+        run: |
+          set -eu
+          a="$(node -p "require('./package.json').version")"
+          b="$(sed -nE 's/^version = "([^"]+)"/\1/p' py/pyproject.toml)"
+          c="$(sed -nE 's/.*VERSION = "([^"]+)".*/\1/p' src/version.ts)"
+          d="$(sed -nE 's/^__version__ = "([^"]+)".*/\1/p' py/overandout/__init__.py)"
+          echo "package.json=$a pyproject=$b version.ts=$c __init__=$d"
+          [ "$a" = "$b" ] && [ "$a" = "$c" ] && [ "$a" = "$d" ]
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: packages
+          path: |
+            *.tgz
+            dist/
+          if-no-files-found: error
