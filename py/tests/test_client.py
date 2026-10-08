@@ -102,6 +102,18 @@ class ClientTests(unittest.TestCase):
         finally:
             relay.close()
 
+    def test_join_does_not_spin_at_the_deadline(self) -> None:
+        relay = FakeRelay({("POST", "/agent/join"): [ok({"status": "waiting", "missing": ["BE"], "task": None})]})
+        try:
+            c = RelayClient(url=relay.url, token=TOKEN)
+            r = c.join(timeout=1.5)  # the fake answers instantly, so a naive loop would spin for 1.5 s
+            self.assertEqual(r["status"], "waiting")
+            calls = [b for m, p, b in relay.calls if p == "/agent/join"]
+            self.assertLessEqual(len(calls), 3, f"expected a handful of polls, got {len(calls)}")
+            self.assertTrue(all(b["timeout_seconds"] >= 0 for b in calls))
+        finally:
+            relay.close()
+
     def test_ask_timeout_then_reply_via_wait(self) -> None:
         relay = FakeRelay({
             ("POST", "/agent/ask"): [ok({"status": "timeout", "ask_id": 7, "reply": None, "hint": "call wait"})],
