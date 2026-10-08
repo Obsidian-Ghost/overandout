@@ -27,7 +27,7 @@ from typing import Any, Dict, List, Optional
 
 from .instructions import INSTRUCTIONS
 
-__version__ = "0.2.0"  # x-release-please-version
+__version__ = "0.2.1"  # x-release-please-version
 
 
 def protocol() -> str:
